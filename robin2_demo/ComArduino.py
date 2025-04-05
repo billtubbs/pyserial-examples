@@ -140,10 +140,10 @@ def encodeHighBytes(inStr):
     outStr = []
     for x in inStr:
         if x >= SPECIAL_BYTE:
-             outStr.append(SPECIAL_BYTE)
-             outStr.append(x - SPECIAL_BYTE)
+            outStr.append(SPECIAL_BYTE)
+            outStr.append(x - SPECIAL_BYTE)
         else:
-             outStr.append(x)
+            outStr.append(x)
     outStr = bytes(outStr)
 
     # print("encINSTR    " + bytesToString(inStr))
@@ -160,13 +160,13 @@ def decodeHighBytes(inStr):
     n = 0
 
     while n < len(inStr):
-         if inStr[n] == SPECIAL_BYTE:
-                n += 1
-                x = SPECIAL_BYTE + inStr[n]
-         else:
-                x = inStr[n]
-         outStr.append(x)
-         n += 1
+        if inStr[n] == SPECIAL_BYTE:
+            n += 1
+            x = SPECIAL_BYTE + inStr[n]
+        else:
+            x = inStr[n]
+        outStr.append(x)
+        n += 1
     outStr = bytes(outStr)
 
     print(f"decINSTR  {bytesToString(inStr):s}")
@@ -178,7 +178,7 @@ def decodeHighBytes(inStr):
 def displayData(data):
 
     print(f"NUM BYTES SENT->   {data[1]:d}")
-    print(f"DATA RECVD -> {bytesToString(data[2:-1]):s}")
+    print(f"DATA RECVD->       {bytesToString(data[2:-1]):s}")
     print(f"DATA RECVD BYTES-> {data[2: -1]!r}")
 
 
@@ -236,7 +236,7 @@ def main():
             print("Failed to open serial connection. Waiting to try again...")
             time.sleep(1)
     else:
-        raise Exception("Could not establish serial connection. Gave up.")
+        raise Exception("Gave up trying to open serial connection.")
 
     print("Waiting for Arduino...")
     waitForArduino(ser)
