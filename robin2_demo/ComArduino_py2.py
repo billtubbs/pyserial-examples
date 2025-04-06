@@ -131,7 +131,7 @@ def recvFromArduino(ser):
     returnData.append(decodeHighBytes(ck))
     # print "RETURNDATA {:s}".format(returnData[0])
 
-    return(returnData)
+    return returnData
 
 
 def encodeHighBytes(inStr):
@@ -148,10 +148,10 @@ def encodeHighBytes(inStr):
              outStr.append(b)
     outStr = b''.join(outStr)
 
-    # print "encINSTR    " + bytesToString(inStr)
+    # print "encINSTR  " + bytesToString(inStr)
     # print "encOUTSTR " + bytesToString(outStr)
 
-    return(outStr)
+    return outStr
 
 
 def decodeHighBytes(inStr):
@@ -171,10 +171,10 @@ def decodeHighBytes(inStr):
          n += 1
     outStr = b''.join(outStr)
 
-    print "decINSTR  {:s}".format(bytesToString(inStr))
-    print "decOUTSTR {:s}".format(bytesToString(outStr))
+    # print "decINSTR  {:s}".format(bytesToString(inStr))
+    # print "decOUTSTR {:s}".format(bytesToString(outStr))
 
-    return(outStr)
+    return outStr
 
 
 def displayData(data):

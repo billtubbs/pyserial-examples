@@ -130,7 +130,7 @@ def recvFromArduino(ser):
     returnData.append(decodeHighBytes(ck))
     # print(f"RETURNDATA {returnData[0]:s}")
 
-    return(returnData)
+    return returnData
 
 
 def encodeHighBytes(inStr):
@@ -146,10 +146,10 @@ def encodeHighBytes(inStr):
             outStr.append(x)
     outStr = bytes(outStr)
 
-    # print("encINSTR    " + bytesToString(inStr))
-    # print("encOUTSTR " + bytesToString(outStr))
+    # print(f"encINSTR  {bytesToString(inStr):s}")
+    # print(f"encOUTSTR {bytesToString(outStr):s}")
 
-    return(outStr)
+    return outStr
 
 
 def decodeHighBytes(inStr):
@@ -157,22 +157,21 @@ def decodeHighBytes(inStr):
     global SPECIAL_BYTE
 
     outStr = []
-    n = 0
-
-    while n < len(inStr):
-        if inStr[n] == SPECIAL_BYTE:
-            n += 1
-            x = SPECIAL_BYTE + inStr[n]
-        else:
-            x = inStr[n]
+    iterInStr = iter(inStr)
+    while True:
+        try:
+            x = next(iterInStr)
+        except StopIteration:
+            break
+        if x == SPECIAL_BYTE:
+            x = SPECIAL_BYTE + next(iterInStr)
         outStr.append(x)
-        n += 1
     outStr = bytes(outStr)
 
-    print(f"decINSTR  {bytesToString(inStr):s}")
-    print(f"decOUTSTR {bytesToString(outStr):s}")
+    # print(f"decINSTR  {bytesToString(inStr):s}")
+    # print(f"decOUTSTR {bytesToString(outStr):s}")
 
-    return(outStr)
+    return outStr
 
 
 def displayData(data):
