@@ -277,7 +277,7 @@ def main():
 
             time.sleep(0.3)
 
-    ser.close
+    ser.close()
 
 
 if __name__ == "__main__":
