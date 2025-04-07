@@ -126,9 +126,7 @@ def recvFromArduino(ser):
     ck.append(b)
     ck = b''.join(ck)
 
-    returnData = []
-    returnData.append(ord(ck[1]))
-    returnData.append(decodeHighBytes(ck))
+    returnData = [ord(ck[1]), decodeHighBytes(ck)]
     # print "RETURNDATA {:s}".format(returnData[0])
 
     return returnData

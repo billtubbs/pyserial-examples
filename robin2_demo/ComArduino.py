@@ -104,30 +104,13 @@ def recvFromArduino(ser):
 
     global START_MARKER, END_MARKER
 
-    ck = []
-    byteCount = -1  # the last increment will be one too many
+    # read data until the start character
+    ser.read_until(bytes([START_MARKER]), size=255)
 
-    # wait for the start character
-    while True:
-        b = ser.read()
-        if ord(b) == START_MARKER:
-            break
+    # read data until the end marker
+    ck = bytes([START_MARKER]) + ser.read_until(bytes([END_MARKER]), size=255)
 
-    # save data until the end marker is found
-    while True:
-        ck.append(b)
-        b = ser.read()
-        byteCount += 1
-        if ord(b) == END_MARKER:
-            break
-
-    # save the end marker byte
-    ck.append(b)
-    ck = b''.join(ck)
-
-    returnData = []
-    returnData.append(ck[1])
-    returnData.append(decodeHighBytes(ck))
+    returnData = [ck[1], decodeHighBytes(ck)]
     # print(f"RETURNDATA {returnData[0]:s}")
 
     return returnData
