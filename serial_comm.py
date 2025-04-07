@@ -9,7 +9,7 @@ Bill Tubbs
 import serial
 import time
 import numpy as np
-from numba import jit, njit, byte, int64, uint8
+from numba import njit, byte, uint8
 
 
 START_MARKER = 254
@@ -33,12 +33,14 @@ def send_data_to_arduino(ser, data):
 def receive_data_from_arduino(ser):
     global START_MARKER, END_MARKER
     # read data until the start character is found
-    ser.read_until(bytes([START_MARKER]), size=255)
+    bytes_seq = ser.read_until(bytes([START_MARKER]), size=65536)
+    assert len(bytes_seq) < 65536, "No start marker found"
     # read data until the end marker is found
-    bytes_seq = bytes([START_MARKER]) + ser.read_until(bytes([END_MARKER]), size=255)
+    bytes_seq = bytes([START_MARKER]) + ser.read_until(bytes([END_MARKER]), size=256)
+    assert len(bytes_seq) < 256, "No end marker found after 255 bytes"
     # decode and convert to numpy array
-    returnData = [bytes_seq[1], decode_bytes(bytes_seq)]
-    return returnData
+    return_data = [bytes_seq[1], decode_bytes(bytes_seq)]
+    return return_data
 
 
 @njit()
@@ -131,40 +133,40 @@ def main():
         list(b"fghijk")
     ]
 
-    numLoops = len(test_data)
+    num_loops = len(test_data)
     n = 0
-    waitingForReply = False
+    waiting_for_reply = False
 
-    while n < numLoops:
+    while n < num_loops:
         print(f"LOOP {n:d}")
 
-        if ser.in_waiting == 0 and waitingForReply is False:
+        if ser.in_waiting == 0 and waiting_for_reply is False:
             data = np.array(test_data[n], dtype=np.uint8)
             send_data_to_arduino(ser, data)
             print("=====sent from PC==========")
             print(f"LOOP NUM {n:d}")
             print(f"DATA SENT: {data.tolist()!r}")
             print("===========================")
-            waitingForReply = True
+            waiting_for_reply = True
 
         if ser.in_waiting > 0:
-            dataRecvd = receive_data_from_arduino(ser)
+            data_received = receive_data_from_arduino(ser)
 
-            if dataRecvd[0] == 0:
-                display_debug_info(dataRecvd[1])
+            if data_received[0] == 0:
+                display_debug_info(data_received[1])
 
-            if dataRecvd[0] > 0:
-                display_data(dataRecvd[1])
-                assert np.array_equal(data, dataRecvd[1][2:-1])
+            if data_received[0] > 0:
+                display_data(data_received[1])
+                assert np.array_equal(data, data_received[1][2:-1])
                 print("Reply Received")
                 n += 1
-                waitingForReply = False
+                waiting_for_reply = False
 
             print("\n===========\n")
 
             time.sleep(0.3)
 
-    ser.close
+    ser.close()
 
 
 if __name__ == "__main__":
