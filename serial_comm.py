@@ -21,12 +21,12 @@ MAX_MSG_LEN = 8192
 
 def send_data_to_arduino(ser, data):
     global START_MARKER, END_MARKER
-    length_encoded = encode_data(data.shape[0].to_bytes(length=2, byteorder='big'))
-    data_encoded = encode_data(data)
+    # Length includes 2 bytes to transmit length value
+    length_bytes = (data.shape[0] + 2).to_bytes(length=2, byteorder='big')
     ser.write(chain.from_iterable([
         [START_MARKER],
-        length_encoded,
-        data_encoded,
+        encode_data(length_bytes),
+        encode_data(data),
         [END_MARKER]
     ]))
 
@@ -42,7 +42,7 @@ def receive_data_from_arduino(ser):
     # decode and convert to numpy array
     bytes_seq = decode_bytes(bytes_seq)
     n_bytes = int.from_bytes(bytes_seq[1:3], byteorder='big')
-    return (n_bytes, bytes_seq)
+    return n_bytes, bytes_seq[3:-1]
 
 
 @nb.njit()
@@ -81,7 +81,7 @@ def display_data(data):
 
 
 def display_debug_info(debugStr):
-    print(f"DEBUG MSG-> {bytes(debugStr[3:-1])!r}")
+    print(f"DEBUG MSG-> {bytes(debugStr)!r}")
 
 
 def wait_for_arduino(ser):

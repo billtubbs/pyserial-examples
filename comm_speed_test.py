@@ -13,8 +13,9 @@ print("Connected to Arduino...")
 test_data = [
     (5, list(b"abcde")),
     (10, np.tile([32, 33, 34], 6).tolist()),
-    (15, np.arange(0, 252, dtype="uint8")),  # TODO: Fails when this is 253 bytes or longer
-    (20, np.tile(np.arange(0, 10), 8)),
+    (15, [250, 251, 252, 253, 254, 255]),
+    (20, np.arange(0, 256, dtype="uint8")),  # TODO: Fails when this is 253-255 bytes
+    (25, np.random.randint(256, size=1593*3, dtype='uint8')),
 ]
 
 num_loops = len(test_data)
@@ -36,16 +37,16 @@ while n < num_loops:
             t_status_update = loop_time
 
     if ser.in_waiting > 0:
-        data_received = receive_data_from_arduino(ser)
+        num_bytes, data_received = receive_data_from_arduino(ser)
         t1 = time.time()
 
-        if data_received[0] == 0:
-            display_debug_info(data_received[1])
+        if num_bytes == 0:
+            display_debug_info(data_received)
         else:
             print(f"{int(loop_time - t_start) % 1000:03d}: Reply {n+1} received after {(t1 - t0) * 1000:.1f} ms")
             t_status_update = loop_time
-            assert data_received[0] == data.shape[0]
-            assert np.array_equal(data, data_received[1][3:-1])
+            assert num_bytes == data.shape[0] + 2
+            assert np.array_equal(data, data_received)
             n += 1
             waiting_for_reply = False
 
@@ -53,7 +54,7 @@ while n < num_loops:
         if waiting_for_reply:
             msg = "Waiting for reply..."
         else:
-            msg = "Listening..."
+            msg = "Waiting to send..."
         print(f"{int(loop_time - t_start) % 1000:03d}: {msg:s}")
         t_status_update = loop_time
 
