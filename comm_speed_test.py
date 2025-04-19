@@ -15,7 +15,7 @@ test_data = [
     (10, np.tile([32, 33, 34], 6).tolist()),
     (15, [250, 251, 252, 253, 254, 255]),
     (20, np.arange(0, 256, dtype="uint8")),  # TODO: Fails when this is 253-255 bytes
-    (25, np.random.randint(256, size=1593*3, dtype='uint8')),
+    (25, np.random.randint(256, size=5000, dtype='uint8')),
 ]
 
 num_loops = len(test_data)
