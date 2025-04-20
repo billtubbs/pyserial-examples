@@ -1,13 +1,15 @@
 /* Arduino script for handling serial communication with another device
  * running a Python script (see comm_speed_test.py).
  *
- * A start marker 254 and an end marker of 255 are used to denote the 
- * beginning and end of a chunk of data. 253 is declared a special byte
- * to be able to reproduce 253, 254 and 255 value.
+ * A start marker of value 254 and an end marker of 255 are used to 
+ * denote the beginning and end of a chunk of data. 253 is declared a 
+ * special byte to be able to reproduce 253, 254 and 255 values.
  * The first two bytes after the start marker indicate the length of
- * the data in bytes. If the number of bytes is 0 the recipient will 
- * assume the data is a debug string which may be printed or logged.
- * It also sends data to the PC using the same system.
+ * the data in bytes. If the number of bytes is 0 the data is
+ * considered a 'debug' message string.
+ * In this demonstration script, a function called processData simply
+ * sends the received data back to the host to verify the communication
+ * process and test the round-trip transmission speed. 
  */
 
 #define MY_NAME "Teensy4"
@@ -16,6 +18,7 @@
 #define END_MARKER 255
 #define SPECIAL_BYTE 253
 #define MAX_PACKAGE_LEN 8192
+#define MSG_BUFFER_SIZE 100
 
 // TODO: consider making some of these locals?
 uint16_t numBytesRecvd = 0;
@@ -30,33 +33,53 @@ uint16_t dataSendCount = 0; // number of data bytes to send to the PC
 uint16_t dataTotalSend = 0; // number of actual bytes to send to PC including encoded bytes
 
 boolean inProgress = false;
-boolean startFound = false;
 boolean allReceived = false;
 boolean connEstablished = false;
 
-#define MSG_BUFFER_SIZE 100
 char msg_buffer[MSG_BUFFER_SIZE];
 
 void setup() {
-  pinMode(13, OUTPUT); // onboard LED
+
+  pinMode(LED_BUILTIN, OUTPUT); // onboard LED
+
   delay(500);
   Serial.begin(57600);
- 
-  // Wait for serial port to connect. Needed for native USB port only
-  while (!Serial) {
-    delay(0);
-  }
-  snprintf(msg_buffer, MSG_BUFFER_SIZE, "My name is %s", MY_NAME);
-  debugToPC(msg_buffer);
+
+  // The board LED will flash until a connection is established.
+  digitalWrite(LED_BUILTIN, HIGH);
+
 }
 
 void loop() {
-
-  getSerialData();
-
-  processData();
-
+  if (Serial) {
+    if (!connEstablished) {
+      connEstablished = true;
+      newConnection();
+    }
+    getSerialData();
+    processData();
+  }
+  else {
+    connEstablished = false;
+    flashBoardLed();
+  }
 }
+
+void newConnection() {
+  snprintf(msg_buffer, MSG_BUFFER_SIZE, "My name is %s", MY_NAME);
+  debugToPC(msg_buffer);
+  digitalWrite(LED_BUILTIN, LOW);
+}
+
+void flashBoardLed() {
+  if ((millis() % 1000) > 100) {
+    digitalWrite(LED_BUILTIN, LOW);
+  }
+  else {
+    digitalWrite(LED_BUILTIN, HIGH);
+  }
+}
+
 
 void getSerialData() {
   /* Receives data into tempBuffer[]
