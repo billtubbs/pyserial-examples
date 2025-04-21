@@ -22,11 +22,11 @@
 
 // TODO: consider making some of these locals?
 uint16_t numBytesRecvd = 0;
-uint16_t numBytesSent = 0; // number of bytes in the package
+uint16_t numBytesExpected = 0; // number of bytes in the package
 
 byte dataRecvd[MAX_PACKAGE_LEN];
 byte dataSend[MAX_PACKAGE_LEN];
-byte tempBuffer[MAX_PACKAGE_LEN];
+byte tempBuffer[MAX_PACKAGE_LEN * 2];
 
 uint16_t dataRecvCount = 0;
 uint16_t dataSendCount = 0; // number of data bytes to send to the PC
@@ -83,49 +83,59 @@ void flashBoardLed() {
 
 void getSerialData() {
   /* Receives data into tempBuffer[]
-   *   saves the number of bytes that the PC said it sent - which will be in tempBuffer[1]
-   *   uses decodeHighBytes() to copy data from tempBuffer to dataRecvd[]
+   * Saves the number of bytes that the PC said it sent - which will be 
+   * in tempBuffer[1], tempBuffer[2]
+   * Uses decodeHighBytes() to copy data from tempBuffer to dataRecvd[]
    *
-   * the Arduino program will use the data it finds in dataRecvd[]
+   * The Arduino program will then use the data it finds in dataRecvd[]
    */
 
   if(Serial.available() > 0) {
 
     byte x = Serial.read();
+
     if (x == START_MARKER) {
       numBytesRecvd = 0;
       inProgress = true;
     }
 
     if(inProgress) {
-      tempBuffer[numBytesRecvd] = x;
-      numBytesRecvd ++;
-    }
-
-    if (x == END_MARKER) {
-      inProgress = false;
-      allReceived = true;
-
-      // Save the first two bytes which contain an integer value for 
-      // the number of bytes sent.
-      numBytesSent = tempBuffer[1] * 256 + tempBuffer[2];
-      snprintf(msg_buffer, MSG_BUFFER_SIZE, "Num data bytes indicated: %d", numBytesSent);
-      debugToPC(msg_buffer);
-      snprintf(msg_buffer, MSG_BUFFER_SIZE, "Total actual bytes received: %d.", numBytesRecvd);
-      debugToPC(msg_buffer);
-
-      decodeHighBytes();
-      snprintf(msg_buffer, MSG_BUFFER_SIZE, "Data bytes actually received: %d.", dataRecvCount);
-      debugToPC(msg_buffer);
-
-      // Check expected number of data bytes received
-      if (dataRecvCount < numBytesSent) {
-        snprintf(msg_buffer, MSG_BUFFER_SIZE, "%d less bytes of data received than expected.", numBytesSent - dataRecvCount);
+      if (numBytesRecvd >= MAX_PACKAGE_LEN * 2) {
+        inProgress = false;
+        snprintf(msg_buffer, MSG_BUFFER_SIZE, "getSerialData failed: data length exceeds %d bytes", MAX_PACKAGE_LEN * 2);
         debugToPC(msg_buffer);
       }
-      else if (dataRecvCount > numBytesSent) {
-        snprintf(msg_buffer, MSG_BUFFER_SIZE, "%d more bytes of data received than expected.", dataRecvCount - numBytesSent);
-        debugToPC(msg_buffer);
+      else {
+        tempBuffer[numBytesRecvd] = x;
+        numBytesRecvd ++;
+
+        if (x == END_MARKER) {
+          inProgress = false;
+          allReceived = true;
+
+          // Save the first two bytes which contain an integer value for 
+          // the number of bytes sent.
+          numBytesExpected = tempBuffer[1] * 256 + tempBuffer[2];
+          snprintf(msg_buffer, MSG_BUFFER_SIZE, "Num. of data bytes expected: %d", numBytesExpected);
+          debugToPC(msg_buffer);
+          snprintf(msg_buffer, MSG_BUFFER_SIZE, "Total actual bytes received: %d.", numBytesRecvd);
+          debugToPC(msg_buffer);
+
+          decodeHighBytes();
+          snprintf(msg_buffer, MSG_BUFFER_SIZE, "Num. of data bytes received: %d.", dataRecvCount);
+          debugToPC(msg_buffer);
+
+          // Check expected number of data bytes received
+          if (dataRecvCount < numBytesExpected) {
+            snprintf(msg_buffer, MSG_BUFFER_SIZE, "%d less bytes of data received than expected.", numBytesExpected - dataRecvCount);
+            debugToPC(msg_buffer);
+          }
+          else if (dataRecvCount > numBytesExpected) {
+            snprintf(msg_buffer, MSG_BUFFER_SIZE, "%d more bytes of data received than expected.", dataRecvCount - numBytesExpected);
+            debugToPC(msg_buffer);
+          }
+        }
+
       }
     }
   }
@@ -135,15 +145,12 @@ void processData() {
   // processes the data that is in dataRecvd[]
 
   if (allReceived) {
-
     // For demonstration, copy dataRecvd to dataSend and send back to PC
     dataSendCount = dataRecvCount;
     for (uint16_t n = 0; n < dataRecvCount; n++) {
        dataSend[n] = dataRecvd[n];
     }
-
     dataToPC();
-
     allReceived = false; 
   }
 }

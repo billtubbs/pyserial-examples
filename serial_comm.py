@@ -6,17 +6,16 @@ Bill Tubbs
 
 """
 
-import serial
-import time
 import numpy as np
 import numba as nb
 from itertools import chain
 
 
+MY_NAME = "Rpi02"
 START_MARKER = 254
 END_MARKER = 255
 SPECIAL_BYTE = 253
-MAX_MSG_LEN = 8192
+MAX_PACKAGE_LEN = 8192
 
 
 def send_data_to_arduino(ser, data):
@@ -34,11 +33,11 @@ def send_data_to_arduino(ser, data):
 def receive_data_from_arduino(ser):
     global START_MARKER, END_MARKER
     # read data until the start character is found
-    bytes_seq = ser.read_until(bytes([START_MARKER]), size=MAX_MSG_LEN)
-    assert len(bytes_seq) < MAX_MSG_LEN, "No start marker found"
+    bytes_seq = ser.read_until(bytes([START_MARKER]), size=MAX_PACKAGE_LEN)
+    assert len(bytes_seq) < MAX_PACKAGE_LEN, "No start marker found"
     # read data until the end marker is found
-    bytes_seq = bytes([START_MARKER]) + ser.read_until(bytes([END_MARKER]), size=MAX_MSG_LEN)
-    assert len(bytes_seq) < MAX_MSG_LEN, f"No end marker found after {MAX_MSG_LEN} bytes"
+    bytes_seq = bytes([START_MARKER]) + ser.read_until(bytes([END_MARKER]), size=MAX_PACKAGE_LEN)
+    assert len(bytes_seq) < MAX_PACKAGE_LEN, f"No end marker found after {MAX_PACKAGE_LEN} bytes"
     # decode and convert to numpy array
     bytes_seq = decode_bytes(bytes_seq)
     n_bytes = int.from_bytes(bytes_seq[1:3], byteorder='big')
