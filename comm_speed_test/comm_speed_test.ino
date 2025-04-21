@@ -32,7 +32,7 @@ uint16_t dataRecvCount = 0;
 uint16_t dataSendCount = 0; // number of data bytes to send to the PC
 uint16_t dataTotalSend = 0; // number of actual bytes to send to PC including encoded bytes
 
-boolean inProgress = false;
+boolean receivingInProgress = false;
 boolean allReceived = false;
 boolean connEstablished = false;
 
@@ -82,60 +82,65 @@ void flashBoardLed() {
 
 
 void getSerialData() {
-  /* Receives data into tempBuffer[]
-   * Saves the number of bytes that the PC said it sent - which will be 
-   * in tempBuffer[1], tempBuffer[2]
-   * Uses decodeHighBytes() to copy data from tempBuffer to dataRecvd[]
-   *
-   * The Arduino program will then use the data it finds in dataRecvd[]
+  /* Receives data from serial connection into tempBuffer[] then calls
+   * decodeHighBytes() to decode and copy data from tempBuffer[] to 
+   * dataRecvd[] for use by the Arduino program.
    */
 
   if(Serial.available() > 0) {
 
     byte x = Serial.read();
 
-    if (x == START_MARKER) {
-      numBytesRecvd = 0;
-      inProgress = true;
+    if (!receivingInProgress) {
+      if (x == START_MARKER) {
+        numBytesRecvd = 0;
+        receivingInProgress = true;
+      }
     }
-
-    if(inProgress) {
+    else {
       if (numBytesRecvd >= MAX_PACKAGE_LEN * 2) {
-        inProgress = false;
-        snprintf(msg_buffer, MSG_BUFFER_SIZE, "getSerialData failed: data length exceeds %d bytes", MAX_PACKAGE_LEN * 2);
+        receivingInProgress = false;
+        snprintf(
+          msg_buffer, 
+          MSG_BUFFER_SIZE, 
+          "getSerialData failed: number of bytes exceeds %d", 
+          MAX_PACKAGE_LEN * 2
+        );
         debugToPC(msg_buffer);
       }
-      else {
-        tempBuffer[numBytesRecvd] = x;
-        numBytesRecvd ++;
+      else{
+        if (x != END_MARKER) {
+          tempBuffer[numBytesRecvd] = x;
+          numBytesRecvd ++;
+        }
+        else {
+          receivingInProgress = false;
 
-        if (x == END_MARKER) {
-          inProgress = false;
-          allReceived = true;
+          // Decode the data from tempBuffer[] into dataRecvd[]
+          decodeHighBytes();
+          if (dataRecvCount >= MAX_PACKAGE_LEN) {
+            snprintf(msg_buffer, MSG_BUFFER_SIZE, "Num. of data bytes exceeds buffer size %d", MAX_PACKAGE_LEN);
+            debugToPC(msg_buffer);
+          }
 
-          // Save the first two bytes which contain an integer value for 
-          // the number of bytes sent.
-          numBytesExpected = tempBuffer[1] * 256 + tempBuffer[2];
+          // The first two bytes indicate the total number of bytes sent
+          numBytesExpected = dataRecvd[0] * 256 + dataRecvd[1];
           snprintf(msg_buffer, MSG_BUFFER_SIZE, "Num. of data bytes expected: %d", numBytesExpected);
           debugToPC(msg_buffer);
           snprintf(msg_buffer, MSG_BUFFER_SIZE, "Total actual bytes received: %d.", numBytesRecvd);
           debugToPC(msg_buffer);
-
-          decodeHighBytes();
           snprintf(msg_buffer, MSG_BUFFER_SIZE, "Num. of data bytes received: %d.", dataRecvCount);
           debugToPC(msg_buffer);
 
           // Check expected number of data bytes received
-          if (dataRecvCount < numBytesExpected) {
-            snprintf(msg_buffer, MSG_BUFFER_SIZE, "%d less bytes of data received than expected.", numBytesExpected - dataRecvCount);
+          if ((dataRecvCount < numBytesExpected) || (dataRecvCount < numBytesExpected)) {
+            snprintf(msg_buffer, MSG_BUFFER_SIZE, "Num. data bytes received does not match expected.");
             debugToPC(msg_buffer);
           }
-          else if (dataRecvCount > numBytesExpected) {
-            snprintf(msg_buffer, MSG_BUFFER_SIZE, "%d more bytes of data received than expected.", dataRecvCount - numBytesExpected);
-            debugToPC(msg_buffer);
+          else {
+            allReceived = true;
           }
         }
-
       }
     }
   }
@@ -145,29 +150,36 @@ void processData() {
   // processes the data that is in dataRecvd[]
 
   if (allReceived) {
-    // For demonstration, copy dataRecvd to dataSend and send back to PC
+    // Here is where you put your code to process the data received.
+    // Instead, for this demonstration, simply copy dataRecvd to dataSend 
+    // and send it back to the PC.
     dataSendCount = dataRecvCount;
     for (uint16_t n = 0; n < dataRecvCount; n++) {
        dataSend[n] = dataRecvd[n];
     }
+    // highByte(dataSendCount);  // send integer as two bytes
+    // lowByte(dataSendCount);
     dataToPC();
     allReceived = false; 
   }
 }
 
 void decodeHighBytes() {
-  /*  copies the length data and the main data bytes to dataRecvd[], excluding 
-   *  the start and end marker bytes and converts any bytes of 253 etc into 
+  /*  copies the length data in the first two bytes and the data bytes to 
+   *  dataRecvd[], converting any bytes following the special byte into 
    *  the intended values.
-   *  Note that numBytesRecvd is the total of all the bytes including the markers
+   *  Note that numBytesRecvd is the total of all the bytes including the
+   *  special bytes and length data bytes.
    */
   dataRecvCount = 0;
-  // Skip the start and end markers
-  for (uint16_t n = 1; n < numBytesRecvd - 1 ; n++) {
+  for (uint16_t n = 0; n < numBytesRecvd; n++) {
     byte x = tempBuffer[n];
     if (x == SPECIAL_BYTE) {
        n++;
        x = x + tempBuffer[n];
+    }
+    if (dataRecvCount >= MAX_PACKAGE_LEN) {
+      break;
     }
     dataRecvd[dataRecvCount] = x;
     dataRecvCount ++;
@@ -183,8 +195,6 @@ void dataToPC() {
   encodeHighBytes();
 
   Serial.write(START_MARKER);
-  Serial.write(highByte(dataSendCount));  // send integer as two bytes
-  Serial.write(lowByte(dataSendCount));
   Serial.write(tempBuffer, dataTotalSend);
   Serial.write(END_MARKER);
 }
@@ -196,7 +206,7 @@ void encodeHighBytes() {
    * bytes, 253 0, 253 1 or 253 2 as appropriate.
    */
   dataTotalSend = 0;
-  for (uint16_t n = 2; n < dataSendCount; n++) {
+  for (uint16_t n = 0; n < dataSendCount; n++) {
     if (dataSend[n] >= SPECIAL_BYTE) {
       tempBuffer[dataTotalSend] = SPECIAL_BYTE;
       dataTotalSend++;
@@ -223,6 +233,7 @@ void debugToPC(char arr[]) {
 void debugToPC(byte num) {
     byte nb = 0;
     Serial.write(START_MARKER);
+    Serial.write(nb);
     Serial.write(nb);
     Serial.print(num);
     Serial.write(END_MARKER);

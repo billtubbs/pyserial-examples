@@ -32,16 +32,17 @@ def send_data_to_arduino(ser, data):
 
 def receive_data_from_arduino(ser):
     global START_MARKER, END_MARKER
-    # read data until the start character is found
-    bytes_seq = ser.read_until(bytes([START_MARKER]), size=MAX_PACKAGE_LEN)
-    assert len(bytes_seq) < MAX_PACKAGE_LEN, "No start marker found"
-    # read data until the end marker is found
-    bytes_seq = bytes([START_MARKER]) + ser.read_until(bytes([END_MARKER]), size=MAX_PACKAGE_LEN)
-    assert len(bytes_seq) < MAX_PACKAGE_LEN, f"No end marker found after {MAX_PACKAGE_LEN} bytes"
-    # decode and convert to numpy array
-    bytes_seq = decode_bytes(bytes_seq)
-    n_bytes = int.from_bytes(bytes_seq[1:3], byteorder='big')
-    return n_bytes, bytes_seq[3:-1]
+    # Read data until the start character is found
+    bytes_seq = ser.read_until(bytes([START_MARKER]), size=MAX_PACKAGE_LEN * 2 + 1)
+    assert bytes_seq[-1] == START_MARKER, "No start marker found"
+    # Read data until the end marker is found
+    bytes_seq = ser.read_until(bytes([END_MARKER]), size=MAX_PACKAGE_LEN * 2 + 1)
+    assert bytes_seq[-1] == END_MARKER, f"No end marker found after {MAX_PACKAGE_LEN * 2 + 1} bytes read"
+    # Decode and convert to numpy array
+    bytes_seq = decode_bytes(bytes_seq[:-1])  # omit end marker
+    assert bytes_seq.shape[0] - 2 <= MAX_PACKAGE_LEN, f"More than {MAX_PACKAGE_LEN} data bytes in package"
+    n_bytes = int.from_bytes(bytes_seq[0:2], byteorder='big')
+    return n_bytes, bytes_seq[2:]
 
 
 @nb.njit()

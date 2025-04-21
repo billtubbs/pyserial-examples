@@ -9,15 +9,19 @@ from serial_comm import (
 )
 
 ser = serial.Serial("/dev/tty.usbmodem112977801", 57600)
-print("Connected to Arduino...")
+print("Connected to Arduino.")
 
+# Provide list of test times and test data
 test_data = [
     (5, list(b"abcde")),
-    (10, np.tile([32, 33, 34], 6).tolist()),
+    (10, np.tile([0, 1, 2], 6).tolist()),
     (15, [250, 251, 252, 253, 254, 255]),
     (20, np.arange(0, 256, dtype="uint8")),
     (25, np.random.randint(256, size=5000, dtype='uint8')),
-    (30, np.ones((8186, ), dtype="uint8")),  # maximum size is 8186
+    (30, np.ones((0x1ff - 2, ), dtype="uint8")),  # length bytes include 255
+    (35, np.ones((8189, ), dtype="uint8")),  # maximum size is 8189
+    (40, np.full((8189, ), 255, dtype="uint8")),  # maximum size is 8189
+    (45, np.ones((8190, ), dtype="uint8")),  # maximum size is 8189
 ]
 
 num_loops = len(test_data)
@@ -39,23 +43,23 @@ while n < num_loops:
             t_status_update = loop_time
 
     if ser.in_waiting > 0:
-        num_bytes, data_received = receive_data_from_arduino(ser)
+        num_bytes, data_recieved = receive_data_from_arduino(ser)
         t1 = time.time()
 
         if num_bytes == 0:
-            display_debug_info(data_received)
-            if data_received.tobytes().startswith(b'getSerialData failed: data length exceeds'):
+            display_debug_info(data_recieved)
+            if data_recieved.tobytes().startswith(b'Num. of data bytes exceeds buffer size'):
                 msg = "Test failed"
                 print(f"{int(loop_time - t_start) % 1000:03d}: {msg:s}")
+                t_status_update = loop_time
                 n += 1
                 waiting_for_reply = False
 
         else:
             print(f"{int(loop_time - t_start) % 1000:03d}: Reply {n+1} received after {(t1 - t0) * 1000:.1f} ms")
-            t_status_update = loop_time
-            #breakpoint()
             assert num_bytes == data.shape[0] + 2
-            assert np.array_equal(data, data_received)
+            assert np.array_equal(data, data_recieved)
+            t_status_update = loop_time
             n += 1
             waiting_for_reply = False
 
